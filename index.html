@@ -10,31 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Nunito:wght@700&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #fdf2f8; 
-            -webkit-tap-highlight-color: transparent;
-            margin: 0;
-            overflow-x: hidden;
-        }
-
-        /* FITUR BACKGROUND GRID MEMUDAR */
-        .bg-grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            /* Ganti 'background.jpg' sesuai nama file fotomu */
-            background-image: url('background.jpg'); 
-            background-size: 150px; /* Ukuran kotak grid */
-            background-repeat: repeat;
-            opacity: 0.15; /* Angka 0.15 ini yang bikin efek memudar */
-            pointer-events: none;
-        }
-
+        body { font-family: 'Inter', sans-serif; background-color: #fdf2f8; -webkit-tap-highlight-color: transparent; margin: 0; overflow-x: hidden; }
+        .bg-grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background-image: url('background.jpg'); background-size: 150px; background-repeat: repeat; opacity: 0.15; pointer-events: none; }
         .heading-font { font-family: 'Nunito', sans-serif; }
         .kick-button:active { transform: scale(0.95); }
         .progress-ring { transition: stroke-dashoffset 0.35s; transform: rotate(-90deg); transform-origin: 50% 50%; }
@@ -43,7 +20,6 @@
 <body class="min-h-screen flex flex-col items-center p-4">
 
     <div class="bg-grid-overlay"></div>
-
     <audio id="bg-music" src="musik.mp3" loop></audio>
 
     <header class="w-full max-w-md text-center mb-6 mt-4">
@@ -73,7 +49,6 @@
 
         <div class="grid grid-cols-1 gap-4">
             <button id="btn-kick" class="w-full bg-pink-500 text-white py-6 rounded-2xl text-xl font-bold shadow-lg disabled:opacity-50" disabled>HITUNG GERAKAN</button>
-            
             <div class="flex space-x-3">
                 <button id="btn-start" class="flex-1 bg-green-500 text-white py-3 rounded-xl font-bold shadow-md">MULAI SESI</button>
                 <button id="btn-stop" class="flex-1 bg-gray-200 text-gray-600 py-3 rounded-xl font-bold hidden">SELESAI</button>
@@ -90,18 +65,12 @@
         <div id="history-list" class="space-y-3"></div>
     </section>
 
-    <div class="w-full max-w-md mt-8 p-4 bg-blue-50 border border-blue-100 rounded-2xl text-blue-800 text-xs">
-        <p class="font-bold mb-1">💡 Tips Aplikasi Hitung Gerakan Buah Hati:</p>
-        <p>Gunakan aplikasi ini untuk memantau pola gerakan bayi secara rutin. Jika gerakan berkurang drastis, segera konsultasikan ke dokter kandungan Anda.</p>
-    </div>
-
     <script>
         const kickDisplay = document.getElementById('kick-count');
         const timerDisplay = document.getElementById('timer-display');
         const statusDisplay = document.getElementById('session-status');
         const historyList = document.getElementById('history-list');
         const bgMusic = document.getElementById('bg-music');
-        
         const btnKick = document.getElementById('btn-kick');
         const btnStart = document.getElementById('btn-start');
         const btnStop = document.getElementById('btn-stop');
@@ -113,33 +82,60 @@
         function updateTimer() {
             const now = new Date();
             const diff = new Date(now - startTime);
-            const h = String(diff.getUTCHours()).padStart(2, '0');
-            const m = String(diff.getUTCMinutes()).padStart(2, '0');
-            const s = String(diff.getUTCSeconds()).padStart(2, '0');
+            const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+            const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
             timerDisplay.textContent = `${h}:${m}:${s}`;
+        }
+
+        function saveCurrentSessionState() {
+            if (isRunning) {
+                localStorage.setItem('active_session_start', startTime.getTime());
+                localStorage.setItem('active_session_count', count);
+            }
+        }
+
+        function clearActiveSession() {
+            localStorage.removeItem('active_session_start');
+            localStorage.removeItem('active_session_count');
         }
 
         function loadHistory() {
             const history = JSON.parse(localStorage.getItem('kick_history') || '[]');
             historyList.innerHTML = history.length ? history.reverse().map(item => `
                 <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border-l-4 border-pink-400">
-                    <div>
-                        <p class="font-bold text-gray-700">${item.count} Gerakan</p>
-                        <p class="text-[10px] text-gray-400 uppercase font-semibold">${item.date} • ${item.time}</p>
-                    </div>
+                    <div><p class="font-bold text-gray-700">${item.count} Gerakan</p><p class="text-[10px] text-gray-400">${item.date} • ${item.time}</p></div>
                     <p class="text-xs text-gray-500 font-mono">${item.duration}</p>
                 </div>`).join('') : '<div class="text-center py-8 text-gray-400 italic text-sm">Belum ada riwayat.</div>';
         }
 
+        function restoreSession() {
+            const savedStart = localStorage.getItem('active_session_start');
+            const savedCount = localStorage.getItem('active_session_count');
+
+            if (savedStart) {
+                startTime = new Date(parseInt(savedStart));
+                count = parseInt(savedCount || 0);
+                isRunning = true;
+                kickDisplay.textContent = count;
+                
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer();
+                
+                btnStart.classList.add('hidden');
+                btnStop.classList.remove('hidden');
+                btnKick.disabled = false;
+                statusDisplay.textContent = 'Sesi Berjalan';
+                statusDisplay.className = 'bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full uppercase';
+            }
+        }
+
         btnStart.addEventListener('click', () => {
-            isRunning = true;
-            count = 0;
-            kickDisplay.textContent = '0';
+            isRunning = true; count = 0; kickDisplay.textContent = '0';
             startTime = new Date();
             timerInterval = setInterval(updateTimer, 1000);
-            
-            // Putar Musik saat klik Mulai
-            bgMusic.play().catch(e => console.log("Musik diblokir browser, butuh interaksi user."));
+            saveCurrentSessionState();
+            bgMusic.play().catch(() => {});
             
             btnStart.classList.add('hidden');
             btnStop.classList.remove('hidden');
@@ -152,13 +148,15 @@
             if (!isRunning) return;
             count++;
             kickDisplay.textContent = count;
+            saveCurrentSessionState();
             if (window.navigator.vibrate) window.navigator.vibrate(50);
+            if (bgMusic.paused) bgMusic.play().catch(() => {});
         });
 
         btnStop.addEventListener('click', () => {
             clearInterval(timerInterval);
             isRunning = false;
-            bgMusic.pause(); // Matikan musik saat selesai
+            bgMusic.pause();
             bgMusic.currentTime = 0;
             
             const now = new Date();
@@ -170,16 +168,19 @@
                 time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
             });
             localStorage.setItem('kick_history', JSON.stringify(history));
+            clearActiveSession();
             
             loadHistory();
             btnStop.classList.add('hidden');
             btnStart.classList.remove('hidden');
             btnKick.disabled = true;
             statusDisplay.textContent = 'Sesi Selesai';
+            statusDisplay.className = 'bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded-full uppercase';
         });
 
         btnReset.addEventListener('click', () => {
             if (confirm('Reset hitungan dan waktu sekarang?')) {
+                clearActiveSession();
                 location.reload();
             }
         });
@@ -191,7 +192,9 @@
             }
         });
 
+        // Jalankan saat aplikasi dibuka
         loadHistory();
+        restoreSession();
     </script>
 </body>
 </html>
